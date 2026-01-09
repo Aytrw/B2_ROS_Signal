@@ -1,0 +1,40 @@
+# ==============================================================================
+# B2 Native RC Bridge 配置文件
+# ==============================================================================
+# 此文件定义了桥接节点的所有可配置参数
+# 使用方式: ros2 launch b2_native_rc_interface rc_bridge.launch.py
+# 
+# 注意: B2 机载系统运行 ROS2 Foxy + CycloneDDS 0.10.x
+# ==============================================================================
+
+b2_native_rc_bridge:
+  ros__parameters:
+    # ========== Topic 配置 ==========
+    # 输入 Topic (来自 Unitree B2)
+    rc_input_topic: "/wirelesscontroller"
+    sport_state_topic: "/sportmodestate"
+    low_state_topic: "/lowstate"
+    
+    # 输出 Topic (发布到 ROS2)
+    output_topic: "/b2_native_rc_signal"
+    
+    # ========== 超时配置 ==========
+    # 遥控器超时时间（秒）
+    # 超过此时间未收到遥控器数据，rc_connected 将变为 false
+    rc_timeout_sec: 0.5
+    
+    # 状态超时时间（秒）
+    state_timeout_sec: 1.0
+    
+    # ========== QoS 配置 ==========
+    # 消息队列深度
+    qos_depth: 10
+    
+    # ========== 摇杆处理配置 ==========
+    # 死区阈值
+    # 当摇杆 magnitude < deadzone 时，视为零输入
+    joystick_deadzone: 0.05
+    
+    # 是否启用死区过滤
+    # true: 启用（推荐），false: 禁用（保留原始数据）
+    joystick_deadzone_enabled: true

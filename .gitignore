@@ -1,0 +1,49 @@
+# Git ignore for ROS2 C++ project
+
+# Build directories
+build/
+install/
+log/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Compiled files
+*.o
+*.a
+*.so
+*.so.*
+*.pyc
+__pycache__/
+
+# ROS2 generated files
+*.msg.cpp
+*.srv.cpp
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Colcon
+.colcon_*
+
+# Testing
+Testing/
+test_results/
+*.gcov
+*.gcda
+*.gcno
+
+# Documentation
+docs/_build/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
