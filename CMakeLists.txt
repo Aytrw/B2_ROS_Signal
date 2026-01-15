@@ -38,9 +38,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
     builtin_interfaces
 )
 
-# Export message targets for downstream packages
-rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} rosidl_typesupport_cpp)
-
 # ============================================================================
 # Include Directories
 # ============================================================================
@@ -87,7 +84,9 @@ ament_target_dependencies(rc_bridge_node
 target_link_libraries(rc_bridge_node
   key_parser
   joystick_processor
-  "${cpp_typesupport_target}"
+)
+rosidl_target_interfaces(rc_bridge_node
+  ${PROJECT_NAME} "rosidl_typesupport_cpp"
 )
 
 # Test Subscriber Node (for debugging)
@@ -98,8 +97,8 @@ ament_target_dependencies(rc_test_subscriber
   rclcpp
   std_msgs
 )
-target_link_libraries(rc_test_subscriber
-  "${cpp_typesupport_target}"
+rosidl_target_interfaces(rc_test_subscriber
+  ${PROJECT_NAME} "rosidl_typesupport_cpp"
 )
 
 # RC Simulator Node (for local testing without B2 hardware)
@@ -111,6 +110,19 @@ ament_target_dependencies(rc_simulator
   unitree_go
 )
 target_include_directories(rc_simulator PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
+# RC Keyboard Simulator (interactive keyboard control)
+add_executable(rc_keyboard_simulator
+  src/nodes/rc_keyboard_simulator.cpp
+)
+ament_target_dependencies(rc_keyboard_simulator
+  rclcpp
+  unitree_go
+)
+target_include_directories(rc_keyboard_simulator PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
@@ -133,6 +145,7 @@ install(TARGETS
   rc_bridge_node
   rc_test_subscriber
   rc_simulator
+  rc_keyboard_simulator
   DESTINATION lib/${PROJECT_NAME}
 )
 

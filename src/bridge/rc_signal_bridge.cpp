@@ -1,10 +1,6 @@
 /**
  * @file rc_signal_bridge.cpp
  * @brief 遥控器信号桥接器实现
- * 
- * @author Your Name
- * @date 2026-01-09
- * @copyright BSD-3-Clause
  */
 
 #include "b2_native_rc_interface/bridge/rc_signal_bridge.hpp"
@@ -13,7 +9,33 @@
 namespace b2_native_rc_interface
 {
 
-RCSignalBridge::RCSignalBridge(const rclcpp::NodeOptions& options)
+RCSigna
+    RCLCPP_INFO(this->get_logger(), 
+        "B2 Native RC Bridge initialized successfully!\n"
+        "  - RC Input Topic: %s\n"
+        "  - Sport State Topic: %s\n"
+        "  - Low State Topic: %s\n"
+        "  - Output Topic: %s",
+        config_.rc_input_topic.c_str(),
+        config_.sport_state_topic.c_str(),
+        config_.low_state_topic.c_str(),
+        config_.output_topic.c_str());
+}
+
+void RCSignalBridge::declareParameters()
+{
+    // ========== Topic 参数 ==========
+    this->declare_parameter<std::string>("rc_input_topic", "/wirelesscontroller");
+    this->declare_parameter<std::string>("sport_state_topic", "/sportmodestate");
+    this->declare_parameter<std::string>("low_state_topic", "/lowstate");
+    this->declare_parameter<std::string>("output_topic", "/b2_native_rc_signal");
+    
+    // ========== 超时参数 ==========
+    this->declare_parameter<double>("rc_timeout_sec", 0.5);
+    this->declare_parameter<double>("state_timeout_sec", 1.0);
+    
+    // ========== QoS 参数 ==========
+    this->declare_parameter<int>("qos_depth", 10);lBridge::RCSignalBridge(const rclcpp::NodeOptions& options)
     : Node("b2_native_rc_bridge", options)
 {
     RCLCPP_INFO(this->get_logger(), "Initializing B2 Native RC Signal Bridge...");
@@ -35,66 +57,60 @@ RCSignalBridge::RCSignalBridge(const rclcpp::NodeOptions& options)
     // 设置订阅者和发布者
     setupSubscribers();
     setupPublisher();
-    
-    RCLCPP_INFO(this->get_logger(), 
-        "B2 Native RC Bridge initialized successfully!\n"
-        "  - RC Input Topic: %s\n"
-        "  - Sport State Topic: %s\n"
-        "  - Low State Topic: %s\n"
-        "  - Output Topic: %s",
-        config_.rc_input_topic.c_str(),
-        config_.sport_state_topic.c_str(),
-        config_.low_state_topic.c_str(),
-        config_.output_topic.c_str());
-}
 
-void RCSignalBridge::declareParameters()
-{
-    // Topic 参数
-    this->declare_parameter<std::string>("rc_input_topic", "/wirelesscontroller");
-    this->declare_parameter<std::string>("sport_state_topic", "/sportmodestate");
-    this->declare_parameter<std::string>("low_state_topic", "/lowstate");
-    this->declare_parameter<std::string>("output_topic", "/b2_native_rc_signal");
-    
-    // 超时参数
-    this->declare_parameter<double>("rc_timeout_sec", 0.5);
-    this->declare_parameter<double>("state_timeout_sec", 1.0);
-    
-    // QoS 参数
-    this->declare_parameter<int>("qos_depth", 10);
-    
-    // 摇杆处理参数
-    this->declare_parameter<double>("joystick_deadzone", 0.05);
-    this->declare_parameter<bool>("joystick_deadzone_enabled", true);
+    // 死区阈值 (官方默认值: 0.01)
+    this->declare_parameter<double>("joystick_dead_zone", 0.01);
+    // 平滑系数 (官方默认值: 0.03)
+    this->declare_parameter<double>("joystick_smooth", 0.03);
+    // 是否启用死区过滤
+    this->declare_parameter<bool>("joystick_dead_zone_enabled", true);
+    // 是否启用平滑滤波
+    this->declare_parameter<bool>("joystick_smooth_enabled", true);
 }
 
 void RCSignalBridge::loadConfig()
 {
-    // 加载 Topic 配置
+    // ========== 加载 Topic 配置 ==========
     config_.rc_input_topic = this->get_parameter("rc_input_topic").as_string();
     config_.sport_state_topic = this->get_parameter("sport_state_topic").as_string();
     config_.low_state_topic = this->get_parameter("low_state_topic").as_string();
     config_.output_topic = this->get_parameter("output_topic").as_string();
     
-    // 加载超时配置
+    // ========== 加载超时配置 ==========
     config_.rc_timeout_sec = this->get_parameter("rc_timeout_sec").as_double();
     config_.state_timeout_sec = this->get_parameter("state_timeout_sec").as_double();
     
-    // 加载 QoS 配置
+    // ========== 加载 QoS 配置 ==========
     config_.qos_depth = this->get_parameter("qos_depth").as_int();
     
-    // 加载摇杆配置
-    float deadzone = static_cast<float>(this->get_parameter("joystick_deadzone").as_double());
-    bool deadzone_enabled = this->get_parameter("joystick_deadzone_enabled").as_bool();
+    // ========== 加载摇杆配置 ==========
+    // 从参数服务器获取摇杆处理参数
+    float dead_zone = static_cast<float>(this->get_parameter("joystick_dead_zone").as_double());
+    float smooth = static_cast<float>(this->get_parameter("joystick_smooth").as_double());
+    bool dead_zone_enabled = this->get_parameter("joystick_dead_zone_enabled").as_bool();
+    bool smooth_enabled = this->get_parameter("joystick_smooth_enabled").as_bool();
     
-    config_.left_stick_config.deadzone = deadzone;
-    config_.left_stick_config.enable_deadzone = deadzone_enabled;
-    config_.right_stick_config.deadzone = deadzone;
-    config_.right_stick_config.enable_deadzone = deadzone_enabled;
+    // 配置左摇杆处理器
+    config_.left_stick_config.dead_zone = dead_zone;
+    config_.left_stick_config.smooth = smooth;
+    config_.left_stick_config.enable_dead_zone = dead_zone_enabled;
+    config_.left_stick_config.enable_smooth = smooth_enabled;
+    
+    // 配置右摇杆处理器（使用相同参数）
+    config_.right_stick_config.dead_zone = dead_zone;
+    config_.right_stick_config.smooth = smooth;
+    config_.right_stick_config.enable_dead_zone = dead_zone_enabled;
+    config_.right_stick_config.enable_smooth = smooth_enabled;
     
     // 更新处理器配置
     left_stick_processor_->setConfig(config_.left_stick_config);
     right_stick_processor_->setConfig(config_.right_stick_config);
+    
+    RCLCPP_INFO(this->get_logger(),
+        "Joystick config: dead_zone=%.3f, smooth=%.3f, dead_zone_enabled=%s, smooth_enabled=%s",
+        dead_zone, smooth,
+        dead_zone_enabled ? "true" : "false",
+        smooth_enabled ? "true" : "false");
 }
 
 void RCSignalBridge::setupSubscribers()
@@ -233,28 +249,34 @@ msg::JoystickState RCSignalBridge::processJoystick(
 
 msg::ButtonState RCSignalBridge::processButtons(uint16_t raw_keys)
 {
+    // 解析按键位掩码
     key_parser_->parse(raw_keys);
-    key_parser_->updateEvents();
     
+    // 更新所有按键的边沿检测状态（官方 Button 类）
+    key_parser_->updateButtons();
+    
+    // 获取解析后的按键联合体
     const auto& keys = key_parser_->getKeys();
     
+    // 构建 ButtonState 消息
+    // 使用 components 字段访问各按键位（与官方一致）
     msg::ButtonState state;
-    state.r1 = keys.bits.R1;
-    state.l1 = keys.bits.L1;
-    state.r2 = keys.bits.R2;
-    state.l2 = keys.bits.L2;
-    state.start = keys.bits.start;
-    state.select = keys.bits.select;
-    state.f1 = keys.bits.F1;
-    state.f2 = keys.bits.F2;
-    state.a = keys.bits.A;
-    state.b = keys.bits.B;
-    state.x = keys.bits.X;
-    state.y = keys.bits.Y;
-    state.up = keys.bits.up;
-    state.down = keys.bits.down;
-    state.left = keys.bits.left;
-    state.right = keys.bits.right;
+    state.r1 = keys.components.R1;
+    state.l1 = keys.components.L1;
+    state.r2 = keys.components.R2;
+    state.l2 = keys.components.L2;
+    state.start = keys.components.start;
+    state.select = keys.components.select;
+    state.f1 = keys.components.F1;
+    state.f2 = keys.components.F2;
+    state.a = keys.components.A;
+    state.b = keys.components.B;
+    state.x = keys.components.X;
+    state.y = keys.components.Y;
+    state.up = keys.components.up;
+    state.down = keys.components.down;
+    state.left = keys.components.left;
+    state.right = keys.components.right;
     state.raw_keys = raw_keys;
     
     return state;

@@ -4,6 +4,9 @@
 # 此文件定义了桥接节点的所有可配置参数
 # 使用方式: ros2 launch b2_native_rc_interface rc_bridge.launch.py
 # 
+# 参数默认值参考 Unitree 官方文档:
+# https://support.unitree.com/home/zh/B2_developer/Get%20Remote%20Control%20Status
+# 
 # 注意: B2 机载系统运行 ROS2 Foxy + CycloneDDS 0.10.x
 # ==============================================================================
 
@@ -11,6 +14,7 @@ b2_native_rc_bridge:
   ros__parameters:
     # ========== Topic 配置 ==========
     # 输入 Topic (来自 Unitree B2)
+    # 官方话题名: rt/wirelesscontroller (DDS) -> /wirelesscontroller (ROS2)
     rc_input_topic: "/wirelesscontroller"
     sport_state_topic: "/sportmodestate"
     low_state_topic: "/lowstate"
@@ -30,11 +34,21 @@ b2_native_rc_bridge:
     # 消息队列深度
     qos_depth: 10
     
-    # ========== 摇杆处理配置 ==========
-    # 死区阈值
-    # 当摇杆 magnitude < deadzone 时，视为零输入
-    joystick_deadzone: 0.05
+    # ========== 摇杆处理配置 (官方默认值) ==========
+    # 死区阈值 (官方默认值: 0.01)
+    # 当 |摇杆值| < dead_zone 时，输出为 0
+    # 官方公式: std::fabs(value) < dead_zone ? 0.0 : value
+    joystick_dead_zone: 0.01
+    
+    # 平滑系数 (官方默认值: 0.03)
+    # 公式: output = output * (1 - smooth) + input * smooth
+    # 值越小越平滑，值越大响应越快
+    joystick_smooth: 0.03
     
     # 是否启用死区过滤
     # true: 启用（推荐），false: 禁用（保留原始数据）
-    joystick_deadzone_enabled: true
+    joystick_dead_zone_enabled: true
+    
+    # 是否启用平滑滤波
+    # true: 启用（与官方 Gamepad 类一致），false: 禁用
+    joystick_smooth_enabled: true
