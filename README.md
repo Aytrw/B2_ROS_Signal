@@ -53,7 +53,7 @@
 cd ~/ros2_ws/src
 git clone <本项目仓库地址>
 cd ~/ros2_ws
-colcon build
+colcon build --symlink-install
 source install/setup.bash
 ```
 
@@ -64,46 +64,99 @@ source install/setup.bash
 ros2 launch b2_native_rc_interface rc_full_simulation.launch.py
 ```
 
-**真机模式:** 见下方 [B2 真机部署](#b2-真机部署)
+**真机模式:** 见下方部署指南
 
 ---
 
-## B2 真机部署
+## 部署指南
 
-### 1. 网络配置
+### 开发机部署
 
-开发机需与 B2 在同一网段：
-B2 ip: `192.168.123.165`
-保证本机ip也为 `192.168.123.xxx` 即可
-
-### 2. DDS 配置
+**1. 配置网络与 DDS**
 
 ```bash
-# 设置 CycloneDDS 为中间件
+# 连接到 B2 网络（IP: 192.168.123.165）
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-
-# 指定网卡（替换 eth0 为连接 B2 的网卡）
 export CYCLONEDDS_URI='<CycloneDDS><Domain><General><Interfaces>
     <NetworkInterface name="eth0" priority="default" multicast="default" />
 </Interfaces></General></Domain></CycloneDDS>'
 ```
 
-> **提示:** 可将上述 export 命令添加到 `~/.bashrc` 中永久生效。
+> 将网卡名 `eth0` 替换为连接 B2 的实际网卡
 
-### 3. 启动桥接节点
+**2. 验证通信**
 
 ```bash
+# 确认可见 B2 话题
+ros2 topic list | grep -E "wirelesscontroller|sportmodestate"
+
+# 查看遥控器数据频率（应约 100Hz）
+ros2 topic hz /wirelesscontroller
+```
+
+**3. 启动桥接**
+
+```bash
+cd ~/ros2_ws  # 进入工作空间
+source install/setup.bash
 ros2 launch b2_native_rc_interface rc_bridge.launch.py
 ```
 
-### 4. 验证
+**4. 验证输出**
 
 ```bash
-# 查看话题频率（应约 100Hz）
-ros2 topic hz /b2_native_rc_signal
-
-# 查看消息内容
 ros2 topic echo /b2_native_rc_signal
+```
+
+---
+
+### B2 机载部署
+
+**1. 系统检查（SSH 连接 B2）**
+
+```bash
+ssh unitree@192.168.123.165  # 默认密码：Unitree0408
+
+# 检查环境
+ros2 --version                # 应为 Foxy
+dpkg -l | grep cyclonedds     # 应为 0.10.x
+```
+
+**2. 配置环境**
+
+在 B2 的 `~/.bashrc` 末尾添加：
+
+```bash
+source /opt/ros/foxy/setup.bash
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+export CYCLONEDDS_URI='<CycloneDDS><Domain><General><Interfaces>
+    <NetworkInterface name="eth0" priority="default" multicast="default" />
+</Interfaces></General></Domain></CycloneDDS>'
+```
+
+执行 `source ~/.bashrc` 使配置生效。
+
+**3. 部署代码**
+
+```bash
+cd ~/ros2_ws/src
+git clone <仓库地址> b2_native_rc_interface
+cd ~/ros2_ws
+```
+
+**4. 编译与启动**
+
+```bash
+colcon build
+source install/setup.bash
+ros2 launch b2_native_rc_interface rc_bridge.launch.py
+```
+
+**5. 验证**
+
+```bash
+ros2 topic hz /b2_native_rc_signal    # 频率约 100Hz
+ros2 topic echo /b2_native_rc_signal  # 操作遥控器观察数据
 ```
 
 ---
@@ -259,7 +312,7 @@ colcon build --packages-select cyclonedds rmw_cyclonedds_cpp
 
 ## 功能状态
 
-### ✅ 已实现
+### 已实现
 
 | 功能 | 说明 |
 |-----|------|
@@ -270,7 +323,7 @@ colcon build --packages-select cyclonedds rmw_cyclonedds_cpp
 | 模拟器 | 自动模拟器 + 键盘模拟器 |
 | 测试订阅者 | 消息验证工具 |
 
-### ⚠️ 已知限制
+### 已知限制
 
 | 限制 | 原因 |
 |-----|------|
