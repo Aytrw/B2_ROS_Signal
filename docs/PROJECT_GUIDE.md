@@ -270,19 +270,17 @@ WirelessController 消息到达
 
 ### 5.1 依赖项
 
-```bash
-# ROS2 依赖
-sudo apt install ros-foxy-rclcpp ros-foxy-std-msgs ros-foxy-rmw-cyclonedds-cpp
-
-# Unitree 依赖
-# 需要 unitree_ros2 包，参考官方文档安装
-```
+| 依赖 | 版本要求 |
+|-----|---------|
+| ROS2 | Foxy |
+| CycloneDDS | 0.10.x |
+| unitree_ros2 | 最新版 (包含 unitree_go, unitree_api) |
 
 ### 5.2 编译
 
 ```bash
 cd ~/ros2_ws
-colcon build --packages-select b2_native_rc_interface
+colcon build
 source install/setup.bash
 ```
 
@@ -295,7 +293,7 @@ ros2 pkg executables b2_native_rc_interface
 # 预期输出:
 # b2_native_rc_interface rc_bridge_node
 # b2_native_rc_interface rc_test_subscriber
-# b2_native_rc_interface rc_simulator_node
+# b2_native_rc_interface rc_simulator
 # b2_native_rc_interface rc_keyboard_simulator
 ```
 
@@ -303,26 +301,13 @@ ros2 pkg executables b2_native_rc_interface
 
 ## 6. 使用方法
 
-### 6.1 在 B2 机器人上运行
+### 6.1 模拟测试（无需硬件）
 
 ```bash
-# 确保 DDS 配置正确
-export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-
-# 启动桥接节点
-ros2 launch b2_native_rc_interface rc_bridge.launch.py
-
-# 或带测试订阅者
-ros2 launch b2_native_rc_interface rc_bridge_with_test.launch.py
-```
-
-### 6.2 无硬件测试 (模拟器)
-
-```bash
-# 自动模拟器 (自动生成测试数据)
+# 完整模拟环境（推荐先测试）
 ros2 launch b2_native_rc_interface rc_full_simulation.launch.py
 
-# 键盘模拟器 (手动控制)
+# 键盘模拟器（手动控制）
 ros2 launch b2_native_rc_interface rc_keyboard_test.launch.py
 ```
 
@@ -340,6 +325,42 @@ ros2 launch b2_native_rc_interface rc_keyboard_test.launch.py
 | ↑↓←→ | 方向键 |
 | R | 重置所有值 |
 | ESC | 退出 |
+
+### 6.2 B2 真机部署
+
+#### 步骤 1：网络配置
+
+开发机需与 B2 在同一网段 192.168.123.xxx
+
+#### 步骤 2：DDS 配置
+
+```bash
+# 设置 CycloneDDS 为中间件
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+
+# 指定网卡（替换 eth0 为连接 B2 的网卡）
+export CYCLONEDDS_URI='<CycloneDDS><Domain><General><Interfaces>
+    <NetworkInterface name="eth0" priority="default" multicast="default" />
+</Interfaces></General></Domain></CycloneDDS>'
+```
+
+> **提示:** 可将上述 export 命令添加到 `~/.bashrc` 中永久生效。
+
+#### 步骤 3：启动
+
+```bash
+ros2 launch b2_native_rc_interface rc_bridge.launch.py
+```
+
+#### 步骤 4：验证
+
+```bash
+# 查看频率（应约 100Hz）
+ros2 topic hz /b2_native_rc_signal
+
+# 查看消息内容
+ros2 topic echo /b2_native_rc_signal
+```
 
 ### 6.3 命令行工具
 
@@ -578,3 +599,37 @@ B2_ROS_Signal/
 └── test/
     └── test_key_parser.cpp         # 单元测试
 ```
+
+---
+
+## 11. 功能状态
+
+### 11.1 已实现功能
+
+| 功能 | 状态 | 说明 |
+|-----|------|------|
+| 摇杆信号捕获 | ✅ | 4 轴数据 + 极坐标转换 |
+| 按键状态解析 | ✅ | 16 个按键 + 组合键检测 |
+| 死区过滤 | ✅ | 官方默认值 0.01 |
+| 平滑滤波 | ✅ | 官方默认值 0.03 |
+| 机器人状态同步 | ✅ | 运动模式、步态、电池电量 |
+| 自动模拟器 | ✅ | 无硬件测试 |
+| 键盘模拟器 | ✅ | 交互式测试 |
+| 测试订阅者 | ✅ | 消息验证工具 |
+
+### 11.2 已知限制
+
+| 限制 | 原因 | 影响 |
+|-----|------|------|
+| 电池电压/电流未读取 | 需真机验证 LowState 字段结构 | `battery_voltage`, `battery_current` 为 0 |
+| 遥控器电量不可用 | SDK 未暴露此信息 | `rc_battery` 固定为 255 |
+| 按键边沿检测未发布 | 仅内部使用 | `on_press`/`on_release` 需自行实现 |
+
+### 11.3 待实现功能
+
+| 功能 | 优先级 | 说明 |
+|-----|--------|------|
+| 参数动态更新 | 中 | 运行时修改死区/平滑参数 |
+| 诊断/健康监控 | 低 | 连接状态变化事件通知 |
+| JoystickProcessor 单元测试 | 低 | 补充测试覆盖率 |
+| 边沿检测消息发布 | 低 | 扩展 ButtonState 包含 on_press 字段 |

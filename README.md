@@ -39,40 +39,71 @@
 
 ## 快速开始
 
-### 1. 安装依赖
+### 1. 依赖版本
 
-```bash
-# ROS2 依赖
-sudo apt install ros-foxy-rclcpp ros-foxy-std-msgs ros-foxy-rmw-cyclonedds-cpp
+| 依赖 | 版本要求 |
+|-----|---------|
+| ROS2 | Foxy |
+| CycloneDDS | 0.10.x |
+| unitree_ros2 | 最新版 (包含 unitree_go, unitree_api) |
 
-# Unitree 依赖
-cd ~/ros2_ws/src
-git clone https://github.com/unitreerobotics/unitree_ros2.git
-cd ~/ros2_ws
-colcon build --packages-select unitree_go unitree_api
-```
-
-### 2. 编译本项目
+### 2. 编译
 
 ```bash
 cd ~/ros2_ws/src
 git clone <本项目仓库地址>
 cd ~/ros2_ws
-colcon build --packages-select b2_native_rc_interface
+colcon build
 source install/setup.bash
 ```
 
 ### 3. 运行
 
-**真机模式（需连接 B2）:**
+**模拟模式（无需硬件，推荐先测试）:**
 ```bash
+ros2 launch b2_native_rc_interface rc_full_simulation.launch.py
+```
+
+**真机模式:** 见下方 [B2 真机部署](#b2-真机部署)
+
+---
+
+## B2 真机部署
+
+### 1. 网络配置
+
+开发机需与 B2 在同一网段：
+B2 ip: `192.168.123.165`
+保证本机ip也为 `192.168.123.xxx` 即可
+
+### 2. DDS 配置
+
+```bash
+# 设置 CycloneDDS 为中间件
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+
+# 指定网卡（替换 eth0 为连接 B2 的网卡）
+export CYCLONEDDS_URI='<CycloneDDS><Domain><General><Interfaces>
+    <NetworkInterface name="eth0" priority="default" multicast="default" />
+</Interfaces></General></Domain></CycloneDDS>'
+```
+
+> **提示:** 可将上述 export 命令添加到 `~/.bashrc` 中永久生效。
+
+### 3. 启动桥接节点
+
+```bash
 ros2 launch b2_native_rc_interface rc_bridge.launch.py
 ```
 
-**模拟模式（无需硬件）:**
+### 4. 验证
+
 ```bash
-ros2 launch b2_native_rc_interface rc_full_simulation.launch.py
+# 查看话题频率（应约 100Hz）
+ros2 topic hz /b2_native_rc_signal
+
+# 查看消息内容
+ros2 topic echo /b2_native_rc_signal
 ```
 
 ---
@@ -223,6 +254,29 @@ colcon build --packages-select cyclonedds rmw_cyclonedds_cpp
 ```
 
 **详细故障排查见:** [docs/PROJECT_GUIDE.md#9-故障排查](docs/PROJECT_GUIDE.md)
+
+---
+
+## 功能状态
+
+### ✅ 已实现
+
+| 功能 | 说明 |
+|-----|------|
+| 摇杆信号捕获 | 4 轴数据 + 极坐标转换 |
+| 按键状态解析 | 16 个按键 + 组合键检测 |
+| 死区/平滑滤波 | 官方默认参数 (0.01/0.03) |
+| 机器人状态同步 | 运动模式、步态、电池电量 |
+| 模拟器 | 自动模拟器 + 键盘模拟器 |
+| 测试订阅者 | 消息验证工具 |
+
+### ⚠️ 已知限制
+
+| 限制 | 原因 |
+|-----|------|
+| 电池电压/电流未读取 | 需真机验证 LowState 字段 |
+| 遥控器电量不可用 | SDK 未暴露此信息 |
+| 按键边沿检测未发布 | on_press/on_release 仅内部使用 |
 
 ---
 

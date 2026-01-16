@@ -135,20 +135,22 @@ private:
             case 'j': case 'J': rx_ = std::max(rx_ - step, -1.0f); break;
             case 'l': case 'L': rx_ = std::min(rx_ + step, 1.0f); break;
             
-            // 按键
-            case '1': toggleButton(4); break;  // R1
-            case '2': toggleButton(5); break;  // L1
-            case '3': toggleButton(6); break;  // R2
-            case '4': toggleButton(7); break;  // L2
-            case '5': toggleButton(11); break; // START
-            case '6': toggleButton(10); break; // SELECT
-            case '7': toggleButton(8); break;  // F1
-            case '8': toggleButton(9); break;  // F2
+            // 按键 - 位定义与官方 xKeySwitchUnion 一致
+            // Bit 0-7:  R1, L1, start, select, R2, L2, F1, F2
+            // Bit 8-15: A, B, X, Y, up, right, down, left
+            case '1': toggleButton(0); break;  // R1 (Bit 0)
+            case '2': toggleButton(1); break;  // L1 (Bit 1)
+            case '3': toggleButton(4); break;  // R2 (Bit 4)
+            case '4': toggleButton(5); break;  // L2 (Bit 5)
+            case '5': toggleButton(2); break;  // START (Bit 2)
+            case '6': toggleButton(3); break;  // SELECT (Bit 3)
+            case '7': toggleButton(6); break;  // F1 (Bit 6)
+            case '8': toggleButton(7); break;  // F2 (Bit 7)
             
-            case 'q': case 'Q': toggleButton(0); break; // A
-            case 'e': case 'E': toggleButton(1); break; // B
-            case 'z': case 'Z': toggleButton(2); break; // X
-            case 'c': case 'C': toggleButton(3); break; // Y
+            case 'q': case 'Q': toggleButton(8); break;  // A (Bit 8)
+            case 'e': case 'E': toggleButton(9); break;  // B (Bit 9)
+            case 'z': case 'Z': toggleButton(10); break; // X (Bit 10)
+            case 'c': case 'C': toggleButton(11); break; // Y (Bit 11)
             
             // 方向键（需要读取转义序列）
             case '\033': { // ESC 序列开始
@@ -156,10 +158,10 @@ private:
                 if (read(STDIN_FILENO, &seq[0], 1) > 0 && seq[0] == '[') {
                     if (read(STDIN_FILENO, &seq[1], 1) > 0) {
                         switch (seq[1]) {
-                            case 'A': toggleButton(12); break; // UP
-                            case 'B': toggleButton(13); break; // DOWN
-                            case 'D': toggleButton(14); break; // LEFT
-                            case 'C': toggleButton(15); break; // RIGHT
+                            case 'A': toggleButton(12); break; // UP (Bit 12)
+                            case 'B': toggleButton(14); break; // DOWN (Bit 14)
+                            case 'D': toggleButton(15); break; // LEFT (Bit 15)
+                            case 'C': toggleButton(13); break; // RIGHT (Bit 13)
                         }
                     }
                 } else {

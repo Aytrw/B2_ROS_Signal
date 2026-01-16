@@ -9,7 +9,29 @@
 namespace b2_native_rc_interface
 {
 
-RCSigna
+RCSignalBridge::RCSignalBridge(const rclcpp::NodeOptions& options)
+    : Node("b2_native_rc_bridge", options)
+{
+    RCLCPP_INFO(this->get_logger(), "Initializing B2 Native RC Signal Bridge...");
+    
+    // 初始化处理器
+    key_parser_ = std::make_unique<KeyParser>();
+    left_stick_processor_ = std::make_unique<JoystickProcessor>();
+    right_stick_processor_ = std::make_unique<JoystickProcessor>();
+    
+    // 初始化时间戳
+    last_rc_time_ = this->now();
+    cached_state_.last_sport_update = this->now();
+    cached_state_.last_low_update = this->now();
+    
+    // 声明并加载参数
+    declareParameters();
+    loadConfig();
+    
+    // 设置订阅者和发布者
+    setupSubscribers();
+    setupPublisher();
+    
     RCLCPP_INFO(this->get_logger(), 
         "B2 Native RC Bridge initialized successfully!\n"
         "  - RC Input Topic: %s\n"
@@ -35,29 +57,9 @@ void RCSignalBridge::declareParameters()
     this->declare_parameter<double>("state_timeout_sec", 1.0);
     
     // ========== QoS 参数 ==========
-    this->declare_parameter<int>("qos_depth", 10);lBridge::RCSignalBridge(const rclcpp::NodeOptions& options)
-    : Node("b2_native_rc_bridge", options)
-{
-    RCLCPP_INFO(this->get_logger(), "Initializing B2 Native RC Signal Bridge...");
+    this->declare_parameter<int>("qos_depth", 10);
     
-    // 初始化处理器
-    key_parser_ = std::make_unique<KeyParser>();
-    left_stick_processor_ = std::make_unique<JoystickProcessor>();
-    right_stick_processor_ = std::make_unique<JoystickProcessor>();
-    
-    // 初始化时间戳
-    last_rc_time_ = this->now();
-    cached_state_.last_sport_update = this->now();
-    cached_state_.last_low_update = this->now();
-    
-    // 声明并加载参数
-    declareParameters();
-    loadConfig();
-    
-    // 设置订阅者和发布者
-    setupSubscribers();
-    setupPublisher();
-
+    // ========== 摇杆处理参数 (官方默认值) ==========
     // 死区阈值 (官方默认值: 0.01)
     this->declare_parameter<double>("joystick_dead_zone", 0.01);
     // 平滑系数 (官方默认值: 0.03)

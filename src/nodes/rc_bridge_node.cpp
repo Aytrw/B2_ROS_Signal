@@ -17,10 +17,8 @@ int main(int argc, char* argv[])
     // 初始化 ROS2
     rclcpp::init(argc, argv);
     
-    // 创建节点选项
+    // 创建节点选项（不自动声明参数，由代码控制）
     rclcpp::NodeOptions options;
-    options.allow_undeclared_parameters(true);
-    options.automatically_declare_parameters_from_overrides(true);
     
     // 创建并运行节点
     auto node = std::make_shared<b2_native_rc_interface::RCSignalBridge>(options);
